@@ -5,39 +5,63 @@ from PIL import Image
 import cv2
 import numpy as np
 
+
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
+mp_holistic = mp.solutions.holistic
 
 
 if __name__ == '__main__':
-    #file = 'man_walking.jpg'
-    file = 'man_sitting.jpg'
-    #file = 'man_crawling.jpg'
+    poselandmarks_list = []
 
-    # Create a MediaPipe `Pose` object
-    with mp_pose.Pose(static_image_mode=True,
-                      model_complexity=2,
-                      enable_segmentation=True) as pose:
-        # Read the file in and get dims
-        image = cv2.imread(file)
+    #file = 'man_squatting_720p.mp4'
+    file = 'man_running.mp4'
+    with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+        capture = cv2.VideoCapture(file)
 
-        # Convert the BGR image to RGB and then process with the `Pose` object.
-        results = pose.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        if not capture.isOpened():
+            print("Error opening video file")
+            raise TypeError
 
-        # Copy the iamge
-    annotated_image = image.copy()
+        frame_width = capture.get(cv2.CAP_PROP_FRAME_WIDTH)
+        frame_height = capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        fps = capture.get(cv2.CAP_PROP_FPS)
+        frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    # Draw pose, left and right hands, and face landmarks on the image with drawing specification defaults.
-    mp_drawing.draw_landmarks(annotated_image,
-                              results.pose_landmarks,
-                              mp_pose.POSE_CONNECTIONS,
-                              landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style())
+        # Create a NumPy array to store the pose data as before
+        # The shape is 3x33x144 - 3D XYZ data for 33 landmarks across 144 frames
+        data = np.empty((2, 33, frames))
 
-    # Save image with drawing
-    #filename = "pose_wireframe.png"
-    #cv2.imwrite(filename, annotated_image)
+        frame_num = 0
 
-    cv2.imshow('image',annotated_image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+        size = (frame_width, frame_height)
+
+        while capture.isOpened():
+            ret, image = capture.read()
+            if not ret:
+                break
+
+            image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
+            annotated_image = image.copy()
+            results = pose.process(image)
+
+            mp_drawing.draw_landmarks(annotated_image,
+                                      results.pose_landmarks,
+                                      mp_pose.POSE_CONNECTIONS,
+                                      landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style())
+
+            landmarks = results.pose_world_landmarks.landmark
+            for i in range(len(mp_pose.PoseLandmark)):
+                data[:, i, frame_num] = (landmarks[i].x, landmarks[i].y)
+
+            frame_num += 1
+
+            cv2.imshow('Frame', annotated_image)
+            # Press Q on keyboard to  exit
+            if cv2.waitKey(25) & 0xFF == ord('q'):
+                break
+
+        # Close the video file
+        capture.release()
+        cv2.destroyAllWindows()
