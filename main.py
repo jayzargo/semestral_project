@@ -1,7 +1,6 @@
 import mediapipe as mp
 import urllib
 import sys
-from PIL import Image
 import cv2
 import numpy as np
 
@@ -12,13 +11,124 @@ mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_holistic = mp.solutions.holistic
 
+
+def populate_body_angles(landmarks, features):
+    features['positions']['left_shoulder'] = [landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x,
+                                              landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y]
+    features['positions']['left_elbow'] = [landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].x,
+                                           landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].y]
+    features['positions']['left_wrist'] = [landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].x,
+                                           landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].y]
+    features['positions']['left_hip'] = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x,
+                                         landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
+    features['positions']['left_knee'] = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x,
+                                          landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
+    features['positions']['left_ankle'] = [landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x,
+                                           landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
+    features['positions']['right_shoulder'] = [landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x,
+                                               landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y]
+    features['positions']['right_elbow'] = [landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].x,
+                                            landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].y]
+    features['positions']['right_wrist'] = [landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].x,
+                                            landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y]
+    features['positions']['right_hip'] = [landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x,
+                                          landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].y]
+    features['positions']['right_knee'] = [landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x,
+                                           landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y]
+    features['positions']['right_ankle'] = [landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x,
+                                            landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y]
+
+    features['angles']['left_shoulder'] = get_angle_between_points(
+        features['positions']['left_hip'],
+        features['positions']['left_shoulder'],
+        features['positions']['left_elbow']
+    )
+    features['angles']['left_elbow'] = get_angle_between_points(
+        features['positions']['left_shoulder'],
+        features['positions']['left_elbow'],
+        features['positions']['left_wrist']
+    )
+    features['angles']['left_hip'] = get_angle_between_points(
+        features['positions']['right_hip'],
+        features['positions']['left_hip'],
+        features['positions']['left_knee']
+    )
+    features['angles']['left_knee'] = get_angle_between_points(
+        features['positions']['left_hip'],
+        features['positions']['left_knee'],
+        features['positions']['left_ankle']
+    )
+    features['angles']['right_shoulder'] = get_angle_between_points(
+        features['positions']['right_hip'],
+        features['positions']['right_shoulder'],
+        features['positions']['right_elbow']
+    )
+    features['angles']['right_elbow'] = get_angle_between_points(
+        features['positions']['right_shoulder'],
+        features['positions']['right_elbow'],
+        features['positions']['right_wrist']
+    )
+    features['angles']['right_hip'] = get_angle_between_points(
+        features['positions']['left_hip'],
+        features['positions']['right_hip'],
+        features['positions']['right_knee']
+    )
+    features['angles']['right_knee'] = get_angle_between_points(
+        features['positions']['right_hip'],
+        features['positions']['right_knee'],
+        features['positions']['right_ankle']
+    )
+
+
+def draw_features(image, features, frame_width, frame_height):
+    cv2.putText(image, str(int(features['angles']['left_shoulder'])),
+                np.add(np.multiply(features['positions']['left_shoulder'], [frame_width, frame_height]).astype(int),
+                       [10, 0]),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+
+    cv2.putText(image, str(int(features['angles']['left_elbow'])),
+                np.add(np.multiply(features['positions']['left_elbow'], [frame_width, frame_height]).astype(int),
+                       [10, 0]),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+
+    cv2.putText(image, str(int(features['angles']['left_hip'])),
+                np.add(np.multiply(features['positions']['left_hip'], [frame_width, frame_height]).astype(int),
+                       [10, 0]),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+
+    cv2.putText(image, str(int(features['angles']['left_knee'])),
+                np.add(np.multiply(features['positions']['left_knee'], [frame_width, frame_height]).astype(int),
+                       [10, 0]),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+
+    cv2.putText(image, str(int(features['angles']['right_shoulder'])),
+                np.add(np.multiply(features['positions']['right_shoulder'], [frame_width, frame_height]).astype(int),
+                       [10, 0]),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+
+    cv2.putText(image, str(int(features['angles']['right_elbow'])),
+                np.add(np.multiply(features['positions']['right_elbow'], [frame_width, frame_height]).astype(int),
+                       [10, 0]),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+
+    cv2.putText(image, str(int(features['angles']['right_hip'])),
+                np.add(np.multiply(features['positions']['right_hip'], [frame_width, frame_height]).astype(int),
+                       [10, 0]),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+
+    cv2.putText(image, str(int(features['angles']['right_knee'])),
+                np.add(np.multiply(features['positions']['right_knee'], [frame_width, frame_height]).astype(int),
+                       [10, 0]),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+
+
 def get_angle_between_points(p1, p_mid, p2):
     _p1 = np.array(p1)
     _p_mid = np.array(p_mid)
     _p2 = np.array(p2)
 
-    rad = np.arctan2(p2[1]-p_mid[1], p2[0]-p_mid[0]) - np.arctan2(p1[1]-p_mid[1], p1[0]-p_mid[0])
-    ang = np.abs(rad*180.0/np.pi)
+    rad = np.arctan2(p2[1] - p_mid[1], p2[0] - p_mid[0]) - np.arctan2(p1[1] - p_mid[1], p1[0] - p_mid[0])
+    ang = np.abs(rad * 180.0 / np.pi)
 
     if ang > 180.0:
         ang = 360 - ang
@@ -26,11 +136,38 @@ def get_angle_between_points(p1, p_mid, p2):
     return ang
 
 
-if __name__ == '__main__':
-    file = 'man_squatting_720p.mp4'
-    # file = 'man_running.mp4'
-    show_only_skeleton = True
-    cap = cv2.VideoCapture(file)
+def extract_features(videofile):
+    body_features = {
+        'angles': {
+            'left_shoulder': 0.0,
+            'left_elbow': 0.0,
+            'right_shoulder': 0.0,
+            'right_elbow': 0.0,
+            'left_hip': 0.0,
+            'left_knee': 0.0,
+            'right_hip': 0.0,
+            'right_knee': 0.0
+        },
+        'positions': {
+            'left_shoulder': 0.0,
+            'left_elbow': 0.0,
+            'right_shoulder': 0.0,
+            'right_elbow': 0.0,
+            'left_hip': 0.0,
+            'left_knee': 0.0,
+            'right_hip': 0.0,
+            'right_knee': 0.0,
+            'left_ankle': 0.0,
+            'left_wrist': 0.0,
+            'right_ankle': 0.0,
+            'right_wrist': 0.0
+        }
+    }
+
+    show_background = False
+    show_features = True
+    show_skeleton = True
+    cap = cv2.VideoCapture(videofile)
 
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -58,33 +195,22 @@ if __name__ == '__main__':
 
             try:
                 landmarks = results.pose_landmarks.landmark
-
-                shoulder = [landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x,
-                            landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y]
-                elbow = [landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].x,
-                         landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].y]
-                wrist = [landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].x,
-                         landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].y]
-
-                print(f"left shoulder: {shoulder}")
-                print(f"left elbow: {elbow}")
-                print(f"left wrist: {wrist}")
-
-                angle = get_angle_between_points(shoulder, elbow, wrist)
+                populate_body_angles(landmarks, body_features)
             except:
                 pass
 
-            if show_only_skeleton:
+            if not show_background:
                 image[:, :] = (0, 0, 0)
 
-            cv2.putText(image, str(int(angle)), np.add(np.multiply(elbow, [frame_width, frame_height]).astype(int),[10,0]),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,255), 1, cv2.LINE_AA)
+            if show_features:
+                draw_features(image, body_features, frame_width, frame_height)
 
-            mp_drawing.draw_landmarks(image,
-                                      results.pose_landmarks,
-                                      mp_pose.POSE_CONNECTIONS,
-                                      mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2),
-                                      mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2))
+            if show_skeleton:
+                mp_drawing.draw_landmarks(image,
+                                          results.pose_landmarks,
+                                          mp_pose.POSE_CONNECTIONS,
+                                          None,
+                                          mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2))
 
             cv2.imshow('Mediapipe feed', image)
 
@@ -93,3 +219,9 @@ if __name__ == '__main__':
 
         cap.release()
         cv2.destroyAllWindows()
+
+
+if __name__ == '__main__':
+    file = 'man_squatting_720p.mp4'
+    # file = 'man_running.mp4'
+    extract_features(file)
